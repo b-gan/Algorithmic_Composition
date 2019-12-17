@@ -1,0 +1,95 @@
+package finalproject;
+
+
+import com.softsynth.jmsl.*;
+import com.softsynth.jmsl.jsyn.JSynInsFromClassName;
+import com.softsynth.jmsl.jsyn.JSynMusicDevice;
+
+/**
+ * Play a MusicShape repeatedly with a JSyn instrument, each repeat scramble the order of its
+ * elements
+ * 
+ * Also demonstrates how to add a PlayLurker which is notified of elements being played by
+ * MusicShape. Don't get the idea that adding the PlayLurker is functionally necessary in this
+ * example. It's just here to show you how to do it.
+ * 
+ * @author Nick Didkovsky, didkovn@mail.rockefeller.edu
+ *  
+ */
+public class MusicShapeScrambling extends java.applet.Applet {
+
+    JMSLMixerContainer mixer;
+    Instrument instrument;
+
+    MusicShape myMusicShape;
+
+    public void init() {
+        JMSL.setIsApplet(true);
+    }
+
+    public void start() {
+        synchronized (JMSL.class) {
+            initJMSL();
+            initMusicDevices();
+            buildMixer();
+            buildInstrument();
+            buildMusicShape();
+            launchMusicShape();
+        }
+    }
+
+    private void initJMSL() {
+        JMSL.scheduler = new EventScheduler();
+        JMSL.scheduler.start();
+        JMSL.clock.setAdvance(0.1);
+    }
+
+    private void initMusicDevices() {
+        JSynMusicDevice.instance().open();
+    }
+
+    private void buildMixer() {
+        mixer = new JMSLMixerContainer();
+        mixer.start();
+    }
+
+    private void buildInstrument() {
+        instrument = new JSynInsFromClassName(8, com.softsynth.jsyn.circuits.FilteredSawtoothBL.class.getName());
+        mixer.addInstrument(instrument);
+    }
+
+    void buildMusicShape() {
+        myMusicShape = new MusicShape(4);
+        myMusicShape.addPlayLurker(new SillyLurker()); // non functional, just for demo
+        myMusicShape.setInstrument(instrument);
+        myMusicShape.add(1.0, 60, 0.6, 0.95);
+        myMusicShape.add(0.25, 60.5, 0.4, 0.5);
+        myMusicShape.add(0.75, 65, 0.2, 1.2);
+        myMusicShape.setRepeats(400);
+
+        myMusicShape.addRepeatPlayable(new Playable() {
+
+            public double play(double time, Composable parent) throws InterruptedException {
+                MusicShape s = (MusicShape) parent;
+                // -1 means scramble whole elements instead of along a single dimension
+                s.scramble(0, s.size() - 1, -1);
+                return time;
+            }
+        });
+    }
+
+    private void launchMusicShape() {
+        myMusicShape.launch(JMSL.now());
+    }
+}
+
+class SillyLurker implements PlayLurker {
+
+    public void notifyPlayLurker(double playTime, MusicJob list, int index) {
+        JMSL.out.println("SillyLurker knows that the following data is being played by MusicShape:");
+        MusicShape s = (MusicShape) list;
+        double[] data = s.get(index);
+        JMSL.printDoubleArray(data);
+    }
+
+}

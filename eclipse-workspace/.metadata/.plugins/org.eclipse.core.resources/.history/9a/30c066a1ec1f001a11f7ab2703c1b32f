@@ -1,0 +1,264 @@
+package trial.clask;
+
+import java.awt.BorderLayout;
+import java.awt.Button;
+import java.awt.FlowLayout;
+import java.awt.Panel;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.concurrent.ThreadLocalRandom;
+
+import javax.swing.JFrame;
+
+import com.softsynth.jmsl.Composable;
+import com.softsynth.jmsl.EventScheduler;
+import com.softsynth.jmsl.JMSL;
+import com.softsynth.jmsl.JMSLMixerContainer;
+import com.softsynth.jmsl.JMSLRandom;
+import com.softsynth.jmsl.MusicShape;
+import com.softsynth.jmsl.ParallelCollection;
+import com.softsynth.jmsl.Playable;
+import com.softsynth.jmsl.jsyn2.JSynMusicDevice;
+import com.softsynth.jmsl.jsyn2.JSynUnitVoiceInstrument;
+import com.softsynth.jmsl.view.MusicShapeEditor;
+
+/**
+ * AlgorithmicMelody.java
+ *
+ * Hit a button that generates and plays a MusicShape Use a JSyn UnitVoice wrapped in a polyphonic
+ * JMSL Instrument Every repeat, the MusicShape scrambles a random subrange of data
+ *
+ * Uses JSyn2 pure Java API.
+ *
+ * @author Nick Didkovsky, nick@didkovsky.com (C) 2017 Nick Didkovsky
+ *
+ *         JSyn (C) Phil Burk, visit www.softsynth.com JMSL (c) Nick Didkovsky and Phil Burk, visit
+ *         www.algomusic.com
+ *
+ */
+
+
+public class AlgorithmicMelodyHorror extends JFrame implements ActionListener {
+
+  
+        MusicShape myMusicShape;
+     
+        JMSLMixerContainer mixer;
+        MusicShapeEditor musicShapeEditor;
+        Button startButton;
+        Button stopButton;
+        // a polyphonic JMSL instrument that allocates and plays JSyn voices.
+        JSynUnitVoiceInstrument ins;
+       
+
+        public void build() {
+                JMSLRandom.randomize();
+                initJMSL();
+                initMusicDevices();
+                initMixer();
+                initInstrument();
+                initMusicShape();
+                buildGUI();
+                buildMusicShape();
+                addWindowListener(new WindowAdapter() {
+                   
+                    public void windowClosing(WindowEvent e) {
+                        cleanup();
+                        System.exit(0);
+                    }
+                    
+                });
+        }
+
+        public void cleanup() {
+                removeAll();
+                myMusicShape.finishAll();
+                try {
+                    myMusicShape.waitForDone();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                JMSL.scheduler.stop();
+                mixer.stop();
+                JMSL.closeMusicDevices();
+            
+        }
+
+        private void initJMSL() {
+            JMSL.scheduler = new EventScheduler();
+            JMSL.scheduler.start();
+            JMSL.clock.setAdvance(0.2);
+        }
+
+        void initMusicDevices() {
+            JSynMusicDevice dev = JSynMusicDevice.instance();
+            dev.open();
+        }
+
+        void initMixer() {
+            mixer = new JMSLMixerContainer();
+            mixer.start();
+        }
+
+        void initInstrument() {
+            // SUBSTITUTE YOUR UnitVoice Class name HERE!!!
+            ins = new JSynUnitVoiceInstrument(8, BerwinBell.class.getName());
+
+            mixer.addInstrument(ins);
+
+        }
+
+        void initMusicShape() {
+        
+        	
+            myMusicShape = new MusicShape(ins.getDimensionNameSpace());
+            myMusicShape.setInstrument(ins);
+            myMusicShape.setRepeats(1000);
+            myMusicShape.prefab();
+        }
+
+        private void buildGUI() {
+            setLayout(new BorderLayout());
+
+            musicShapeEditor = new MusicShapeEditor();
+            musicShapeEditor.addMusicShape(myMusicShape);
+            add(BorderLayout.NORTH, musicShapeEditor.getComponent());
+
+            add(BorderLayout.CENTER, mixer.getPanAmpControlPanel());
+
+            Panel buttonPanel = new Panel();
+            buttonPanel.setLayout(new FlowLayout());
+            buttonPanel.add(startButton = new Button("Click to start"));
+            buttonPanel.add(stopButton = new Button("Click to stop"));
+            add(BorderLayout.SOUTH, buttonPanel);
+
+            startButton.addActionListener(this);
+            stopButton.addActionListener(this);
+            stopButton.setEnabled(false);
+ 
+        }
+
+        /**
+         * call prefab() on MusicShape to create a number of elements with random values in each
+         * dimension. Plays every dimension of the JSyn UnitVoice polyphonically
+         *
+         */
+        void buildMusicShape() {
+            //myMusicShape.prefab();
+        	double[] song = new double[] {60,60,62,60,65,64,60,60,62,60,67,65,60,60,72,69,65,65,64,62,70,70,69,65,67,65};  //happy birthday here
+        	for(int i=0;i<myMusicShape.size();i++) {
+        		myMusicShape.set(song[i],i,1);
+    			myMusicShape.set(1.25, i,4); //ration 1.25 for 3rd
+    			myMusicShape.set(1.5,i, 5);
+    			myMusicShape.set(1.8,i, 6);
+    			myMusicShape.set(.25, i,0); //duration
+    			myMusicShape.set(.1, i,3);
+    			myMusicShape.set(.5, i,2); //amplitude
+        	}
+            myMusicShape.print();
+            musicShapeEditor.refresh();
+            
+
+            // add a Playable that scrambles some data every time this MusicShape
+            // repeats
+            
+            myMusicShape.addRepeatPlayable(new MusicShapeScrambler(musicShapeEditor));
+        }
+
+        public void actionPerformed(ActionEvent e) {
+            Object source = e.getSource();
+            if (source == startButton) {
+                buildMusicShape();
+                myMusicShape.launch(JMSL.now());
+            
+                startButton.setEnabled(false);
+                stopButton.setEnabled(true);
+            }
+            if (source == stopButton) {
+                myMusicShape.finishAll();
+                startButton.setEnabled(true);
+                stopButton.setEnabled(false);
+            }
+        }
+        
+        public static void main(String[] args) {
+            AlgorithmicMelodyHorror algorithmicMelody = new AlgorithmicMelodyHorror();
+            algorithmicMelody.build();
+            algorithmicMelody.pack();
+            algorithmicMelody.setVisible(true);           
+        }
+
+    }
+
+    /**
+     * This class implements Playable and can be added to a MusicShape's RepeatPlayables. It scrambles a
+     * randomly chosen subset of data every time the MusicShape repeats
+     *
+     * @author Nick Didkovsky, email: nick@didkovsky.com  
+     *
+     */
+class MusicShapeScrambler implements Playable {
+
+        MusicShapeEditor editor;
+
+        /**
+         * Pass in the MusicShapeEditor just so we can call refresh() on it after scarmalbing. Pass in
+         * null if you don't care
+         */
+
+        MusicShapeScrambler(MusicShapeEditor editor) {
+            this.editor = editor;
+        }
+        double durationC = 0.25;
+        double ratioOne = 1.25;
+        double ratioTwo = 1.5;
+        double ratioThird = 1.8;
+        double amp = 0.5;
+        int rep = 0;
+        public double play(double playTime, Composable parent) {
+            MusicShape s = (MusicShape) parent;
+            //int randomIndex1 = JMSLRandom.choose(s.size());
+            //int randomIndex2 = JMSLRandom.choose(s.size());
+            //the idea is that the root of the melody remains the same but after a while the ratios of the chords
+            //become ever so slightly off
+            //if you disconnect the modulator, it sounds straight out of a horror movie
+            //it actually does not sound as nice when conneced to the modulator 
+            double min = -0.1;
+            double max = 0.2;
+            double min1 = 0.1;
+            double max1 = 0.2;
+            double min2 = 0.00001;
+            double max2 = 0.00004;
+            double min3 = -0.2;
+            double max3 = 0.0001;
+            
+            for(int i=0;i<s.size();i++) {
+                double random1 = ThreadLocalRandom.current().nextDouble(min,max);
+            	s.set(durationC+random1, i,0);
+            	double random2 = ThreadLocalRandom.current().nextDouble(min1,max1);
+            	s.set(ratioOne+random2, i,4);
+            	double random3  = ThreadLocalRandom.current().nextDouble(min2,max2);
+            	s.set(ratioTwo+random3, i,5);
+            	double random4 = ThreadLocalRandom.current().nextDouble(min3,max3);
+            	s.set(ratioThird+random4,i,6);
+            	s.set(amp+0.01,i,2);
+            	if(rep==5) {
+            		rep = 0;
+            		durationC=durationC*0.15;
+            	}
+            }
+            ratioTwo+=ThreadLocalRandom.current().nextDouble(min2,max2);
+            ratioThird+=ThreadLocalRandom.current().nextDouble(min3,max3);
+            ratioOne+=ThreadLocalRandom.current().nextDouble(min1,max1);
+            durationC+=ThreadLocalRandom.current().nextDouble(min,max); //time change
+            amp+= 0.03;
+            rep+=1;
+            
+            if (editor != null) {
+                editor.refresh();
+            }
+            return playTime;
+        }
+    }

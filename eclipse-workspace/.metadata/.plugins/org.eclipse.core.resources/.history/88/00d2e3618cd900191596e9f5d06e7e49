@@ -1,0 +1,33 @@
+package algomusic_gan;
+//command shift f
+
+public class city {
+
+	int population;
+	String name;
+
+	public int getPopulation() {
+		return population;
+	}
+
+	public void setPopulation(int population) {
+		this.population = population;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public static void main(String[] args) {
+		city city1 = new city();
+		city1.setName("boston");
+		city1.setPopulation(400);
+		System.out.println("city1 is"+city1.getName() + city1.getPopulation());
+		city1.setPopulation(city1.getPopulation()*2)
+		System.out.println("city1 is"+city1.getName() + city1.getPopulation());
+
+}

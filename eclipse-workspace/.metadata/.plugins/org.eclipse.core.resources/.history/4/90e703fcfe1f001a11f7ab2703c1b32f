@@ -1,0 +1,116 @@
+/*
+ * Created on Dec 3, 2019 by nick
+ *
+ */
+package jmslexamples.jsyn2;
+
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.Enumeration;
+import java.util.Vector;
+
+import javax.swing.JFrame;
+
+import com.softsynth.jmsl.*;
+import com.softsynth.jmsl.jsyn2.*;
+import com.softsynth.jmsl.view.JMSLScrollbar;
+import com.softsynth.jmsl.view.JMSLScrollbarProcessor;
+
+/**
+ * For Cindy Bui.
+ * 
+ * Play a MusicShape with a JSynUnitVoiceInstrument. Use new feature to retrieve voices active at a
+ * given timestamp, to change their parameters instantly while the MusicShape is playing.
+ * 
+ * @author nick Didkovsky, (c) 2019 Nick Didkovsky, nick@didkovsky.com
+ *
+ */
+
+public class ChangeActiveVoices implements JMSLScrollbarProcessor {
+
+    JMSLMixerContainer mixer;
+    JSynUnitVoiceInstrument instrument;
+    MusicShape musicShape;
+
+    void initJSyn() {
+        JSynMusicDevice dev = JSynMusicDevice.instance();
+        dev.open();
+    }
+
+    void initJMSL() {
+        JMSL.clock.setAdvance(0.2);
+    }
+
+    private void buildMixer() {
+        mixer = new JMSLMixerContainer();
+        mixer.start();
+    }
+
+    private void buildInstrument() {
+        instrument = new JSynUnitVoiceInstrument(8, com.jsyn.instruments.SubtractiveSynthVoice.class.getName());
+        mixer.addInstrument(instrument);
+    }
+
+    void buildMusicShape() {
+        musicShape = new MusicShape(instrument.getDimensionNameSpace());
+        musicShape.setInstrument(instrument);
+        musicShape.prefab();
+
+        musicShape.print();
+        musicShape.setRepeats(10000);
+    }
+
+    void launchMusicShape() {
+        musicShape.launch(JMSL.now());
+    }
+
+    JMSLScrollbar getScrollbar() {
+        JMSLScrollbar myScrollbar = new JMSLScrollbar(this, 50, 0, 100);
+        myScrollbar.setSize(320, 25);
+        return myScrollbar;
+    }
+
+    public void JMSLScrollbarValueChanged(JMSLScrollbar jsb) {
+        System.out.println("scrollbar value=" + jsb.getValue());
+        double proportion = (double)jsb.getValue() / 100;
+        double range = instrument.getDimensionNameSpace().getHighLimit(4) - instrument.getDimensionNameSpace().getLowLimit(4);
+        double newPitchMod = instrument.getDimensionNameSpace().getLowLimit(4) + proportion * range;
+        System.out.println("Setting pitchMod of all active voices to " + newPitchMod);
+        
+        // fetch a vector of currently active voices
+        Vector activeVoices = instrument.getActiveJSynVoices(JMSL.realTime());
+        for (Enumeration e = activeVoices.elements(); e.hasMoreElements();) {
+            PerformedJSynVoice voice = (PerformedJSynVoice) e.nextElement();
+            System.out.println("Voice:\ttoken=" + voice.getVoiceToken() + ", ontime=" + voice.getOnTime() + ", offtime="
+                    + voice.getOffTime() + ", pitch=" + voice.getData()[1]);
+            // let's have this affect the pitch mod dimension 4
+            
+            double[] storedData = voice.getData();
+            storedData[4] = newPitchMod;
+            instrument.update(JMSL.now(), 1.0, storedData, voice.getVoiceToken());
+        }
+    }
+
+    public static void main(String[] args) {
+        ChangeActiveVoices demo = new ChangeActiveVoices();
+        demo.initJMSL();
+        demo.initJSyn();
+        demo.buildMixer();
+        demo.buildInstrument();
+        demo.buildMusicShape();
+        demo.launchMusicShape();
+
+        JFrame jf = new JFrame("Close to quit");
+        jf.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                JMSL.closeMusicDevices();
+                System.exit(0);
+            }
+        });
+        jf.add(demo.getScrollbar());
+        jf.pack();
+        jf.setVisible(true);
+
+    }
+
+}

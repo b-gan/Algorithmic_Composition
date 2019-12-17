@@ -1,0 +1,85 @@
+package finalproject;
+import java.awt.Button;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+
+import com.softsynth.jmsl.EventScheduler;
+import com.softsynth.jmsl.JMSL;
+import com.softsynth.jmsl.JMSLMixerContainer;
+import com.softsynth.jmsl.JMSLRandom;
+import com.softsynth.jmsl.MusicShape;
+import com.softsynth.jmsl.jsyn2.JSynMusicDevice;
+import com.softsynth.jmsl.jsyn2.JSynUnitVoiceInstrument;
+import com.softsynth.jmsl.jsyn2.unitvoices.FilteredSawtoothBL;
+import com.softsynth.jmsl.view.MusicShapeEditor;
+
+import trial.clask.BerwinBell;
+
+
+public class GeneticMIDI {
+
+    MusicShape myMusicShape;
+ 
+    JMSLMixerContainer mixer;
+    MusicShapeEditor musicShapeEditor;
+    Button startButton;
+    Button stopButton;
+    // a polyphonic JMSL instrument that allocates and plays JSyn voices.
+    JSynUnitVoiceInstrument ins;
+   
+
+    public void build() {
+            JMSLRandom.randomize();
+            initJMSL();
+            initMusicDevices();
+            initMixer();
+            initInstrument();
+            initMusicShape();
+            buildGUI();
+            buildMusicShape();
+            addWindowListener(new WindowAdapter() {
+               
+                public void windowClosing(WindowEvent e) {
+                    cleanup();
+                    System.exit(0);
+                }
+                
+            });
+    }
+
+    public void cleanup() {
+            removeAll();
+            myMusicShape.finishAll();
+            try {
+                myMusicShape.waitForDone();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            JMSL.scheduler.stop();
+            mixer.stop();
+            JMSL.closeMusicDevices();
+        
+    }
+
+    private void initJMSL() {
+        JMSL.scheduler = new EventScheduler();
+        JMSL.scheduler.start();
+        JMSL.clock.setAdvance(0.2);
+    }
+
+    void initMusicDevices() {
+        JSynMusicDevice dev = JSynMusicDevice.instance();
+        dev.open();
+    }
+
+    void initMixer() {
+        mixer = new JMSLMixerContainer();
+        mixer.start();
+    }
+
+    void initInstrument() {
+        ins = new JSynUnitVoiceInstrument(8, FilteredSawtoothBL.class.getName());
+        mixer.addInstrument(ins);
+    }
+
+}

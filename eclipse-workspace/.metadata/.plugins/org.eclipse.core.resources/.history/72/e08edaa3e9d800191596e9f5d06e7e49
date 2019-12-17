@@ -1,0 +1,6 @@
+package helloworld;
+
+public class HelloWorld {
+	System.out.println("Hello Workd");
+
+}

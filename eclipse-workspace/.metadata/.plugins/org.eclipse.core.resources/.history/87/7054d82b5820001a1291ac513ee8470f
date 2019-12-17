@@ -1,0 +1,60 @@
+package didkovsky.javamusic.jmsl;
+
+import com.softsynth.jmsl.*;
+
+public class IndexedMusicShapePlayer extends MusicJob {
+
+	MusicShape myMusicShape;
+	private int elementIndex = 0;
+
+	public MusicShape getMyMusicShape() {
+		return myMusicShape;
+	}
+
+	public void setMyMusicShape(MusicShape myMusicShape) {
+		this.myMusicShape = myMusicShape;
+	}
+
+	public double repeat(double playTime) {
+		double updatedTime = playTime;
+		if (myMusicShape != null) {
+			elementIndex = elementIndex % myMusicShape.size();
+			System.out.println("playing element " + elementIndex);
+			double[] data = myMusicShape.get(elementIndex);
+			if (myMusicShape.getInstrument() != null) {
+				updatedTime = myMusicShape.getInstrument().play(playTime, myMusicShape.getTimeStretch(), data);
+			}
+			elementIndex++;
+		}
+		return updatedTime;
+	}
+
+	public void resetIndex() {
+		elementIndex = 0;
+	}
+
+	public void setIndex(int index) {
+		this.elementIndex = index;
+	}
+
+	public static void main(String[] args) {
+		IndexedMusicShapePlayer job = new IndexedMusicShapePlayer();
+
+		MusicShape s = new MusicShape(4);
+		s.add(1.5, 2, 3, 4);
+		s.add(1.5, 20, 3, 4);
+		s.add(1.5, 200, 3, 4);
+		job.setMyMusicShape(s);
+
+		job.setRepeats(100);
+		job.launch(JMSL.now());
+
+		try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		// job.resetIndex();
+		job.setIndex(2);
+	}
+}

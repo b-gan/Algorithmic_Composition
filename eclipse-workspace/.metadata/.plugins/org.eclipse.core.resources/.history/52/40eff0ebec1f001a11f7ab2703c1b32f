@@ -1,0 +1,154 @@
+package didkovsky.javamusic.jmsl.score;
+
+import java.util.Vector;
+
+import com.softsynth.jmsl.*;
+import com.softsynth.jmsl.jsyn2.JSynMusicDevice;
+import com.softsynth.jmsl.jsyn2.JSynUnitVoiceInstrument;
+import com.softsynth.jmsl.score.*;
+import com.softsynth.jmsl.score.transcribe.*;
+import com.softsynth.jmsl.util.Patch;
+import com.softsynth.jmsl.util.TimeSignature;
+
+import didkovsky.javamusic.jmsl.SigProcRedNoiseRing;
+
+public class ScoreExample {
+
+	Score score;
+	ScoreFrame scoreFrame;
+	JSynUnitVoiceInstrument ins;
+	JSynUnitVoiceInstrument sigProcIns;
+
+	void initJSyn() {
+		JSynMusicDevice jsynMusicDevice = JSynMusicDevice.instance();
+		jsynMusicDevice.open();
+	}
+
+	void initInstrument() {
+		ins = new JSynUnitVoiceInstrument(8, com.softsynth.jmsl.jsyn2.unitvoices.FilteredSawtoothBL.class.getName());
+		sigProcIns = new JSynUnitVoiceInstrument(8, SigProcRedNoiseRing.class.getName());
+		Orchestra orch = new Orchestra();
+		orch.addInstrument(ins);
+		orch.addInstrument(sigProcIns);
+		// sigProcIns.addSignalSource(ins);
+		orch.addOrchPatch(new Patch(0, 1));
+		orch.patchInstruments();
+		score.setOrchestra(orch);
+
+	}
+
+	void initScore() {
+		score = new Score(2, 800, 400, "My Score Example");
+		score.addMeasure();
+	}
+
+	public void initScoreFrame() {
+		scoreFrame = new ScoreFrame();
+		scoreFrame.addUnaryCopyBufferTransform(new MyUnaryCopyBufferTransform());
+		scoreFrame.addScore(score);
+		scoreFrame.pack();
+		scoreFrame.setVisible(true);
+	}
+
+	void populateScore() {
+		// Note note = score.addNote(0, 61, 0.5, 0.8);
+		// note.setAccPref(Note.ACC_PREFER_FLAT);
+		// MusicShape temp = new MusicShape(ins.getDimensionNameSpace());
+		// double[] data = temp.getDefaultArray();
+		// JMSL.printDoubleArray(data);
+		// data[1] = 72;
+		// Note note = score.addNote(data);
+		MusicShape temp = new MusicShape(ins.getDimensionNameSpace());
+		temp.prefab();
+		temp.print();
+		// for (int i = 0; i < temp.size(); i++) {
+		// double[] data = temp.get(i);
+		// if (data[0] > 0) {
+		// score.addNote(data);
+		// }
+		// }
+
+		temp.integrate(0);
+		temp.print();
+
+		BeatDivisionSchemeList.defaultSetup();
+
+		Transcriber transcriber = new Transcriber();
+		transcriber.setScore(score);
+		transcriber.setSourceMusicShape(temp);
+
+		Vector v = new Vector();
+		// v.add(new TimeSignature(2, 4));
+		// v.add(new TimeSignature(2, 4));
+		// v.add(new TimeSignature(3, 4));
+		// transcriber.setTimeSignatures(v);
+
+		v.add(new TempoTimeSignatureHolder(new Tempo(120), new TimeSignature(4, 4)));
+		v.add(new TempoTimeSignatureHolder(new Tempo(72), new TimeSignature(3, 4)));
+		transcriber.setTempoTimeSignatures(v);
+
+		try {
+			transcriber.transcribe();
+		} catch (SearchPathListExpansionException e) {
+			e.printStackTrace();
+		} catch (ElementMissedException e) {
+			e.printStackTrace();
+		}
+
+		score.rewind();
+		score.setCurrentStaffNumber(1);
+		// score.addNote(1.0, 70, 0.5, 0.8);
+		// score.addNote(1.0, 76, 0.5, 0.8);
+		// score.addNote(1.0, 73, 0.5, 0.8);
+		// score.addNote(1.0, 72, 0.5, 0.8);
+		MusicShape sigShape = new MusicShape(4);
+		for (int i = 0; i < 20; i++) {
+			double dur = JMSLRandom.choose(1.0, 4.0);
+			double pitch = 60 + i * 2.2;
+			double amp = 0.5;
+			double hold = dur * 0.8;
+			sigShape.add(dur, pitch, amp, hold);
+		}
+		sigShape.integrate(0);
+
+		transcriber.setSourceMusicShape(sigShape);
+		try {
+			transcriber.transcribe();
+		} catch (SearchPathListExpansionException e) {
+			e.printStackTrace();
+		} catch (ElementMissedException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public static void main(String[] args) {
+		JMSL.clock.setAdvance(0.2);
+		ScoreExample scoreExample = new ScoreExample();
+		scoreExample.initJSyn();
+		scoreExample.initScore();
+		scoreExample.initInstrument();
+		
+		scoreExample.populateScore();
+		
+		scoreExample.initScoreFrame();
+	}
+}
+
+class MyUnaryCopyBufferTransform extends UnaryCopyBufferTransform {
+
+	MyUnaryCopyBufferTransform() {
+		setName("My transform");
+	}
+
+	public void operate(CopyBuffer copyBuffer) {
+		for (int i = 0; i < copyBuffer.size(); i++) {
+			Note n = (Note) copyBuffer.elementAt(i);
+			double currentPitch = n.getPitchData();
+			double newPitch = currentPitch + 12.5;
+			n.setPitchData(newPitch);
+			NoteFactory.updateFromPitch(n);
+		}
+	}
+
+}

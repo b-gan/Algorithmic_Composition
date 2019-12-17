@@ -1,0 +1,163 @@
+package finalproject;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.*; 
+import java.util.function.Supplier;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+
+import com.softsynth.jmsl.*;
+import com.softsynth.jmsl.jsyn2.JSynMusicDevice;
+import com.softsynth.jmsl.jsyn2.JSynUnitVoiceInstrument;
+import com.softsynth.jmsl.jsyn2.unitvoices.FilteredSawtoothBL;
+import com.softsynth.jmsl.util.MIDIFileToMusicShape;
+import com.softsynth.jmsl.view.MusicShapeEditor;
+
+public class MidiFileDemo extends JFrame{
+
+	MusicShape hbd;
+	MusicShape s; //or any modifying stuff here 
+	PlayLurker indexListener;
+	int internal_index;
+
+	void tempo(double tempo) { //need to check again in future
+		double given_tempo = 120.0; 
+		double ratio = given_tempo/tempo; //flip, nice, done.
+		for(int i =0;i<hbd.size();i++) { //duration pitch, amplitude hold
+			double new_duration = (hbd.get(i, 0))*ratio;
+			double new_hold =(hbd.get(i, 3))*ratio;
+			hbd.set(new_duration, i,0);
+			hbd.set(new_hold, i,3);
+		}
+	}
+	void readMidi() throws IOException { //done.
+		MIDIFileToMusicShape fileToMusicShape = new MIDIFileToMusicShape();
+		fileToMusicShape.convertMIDIFile("/Users/berwingan/Downloads/pirate.mid");
+		ParallelCollection par = fileToMusicShape.getParallelCollection();
+		System.out.println("Par col has " + par.size() + " children");
+		for (int i = 0; i < par.size(); i++) { //duration pitch, amplitude hold
+			MusicShape s = (MusicShape) par.get(i);
+			double totalDur = s.get(s.size() - 1, 0);
+			s.differentiate(totalDur, 0);
+			s.scale(1.0 / 127.0, 0, s.size() - 1, 2); //pitches 
+			s.print();
+			if (i == 1) {
+				hbd = s;
+			}
+		}
+		hbd.useStandardDimensionNameSpace();
+		hbd.remove(hbd.size()-1); //remove last
+	}
+	
+    public void buildIndexListener() {
+        indexListener = new PlayLurker() {
+            public void notifyPlayLurker(double playTime, MusicJob musicShape, int index) {
+                MusicShape ms = (MusicShape) musicShape;
+                System.out.println("Index " + index + " being played in musicShape " + musicShape.getName() + " at playTime="
+                        + playTime + ", pitch=" + ms.get(index, 1));
+                internal_index =index;  
+            }
+        };
+        hbd.addPlayLurker(indexListener);
+    }
+    public MusicShape RandomShuffle(MusicShape hbd) { //one of many 
+    	MusicShape s = new MusicShape(hbd.dimension()); //future proofing yo
+    	s.useStandardDimensionNameSpace();
+		List<Integer> ret = new ArrayList<>();
+    	for(int i = 0;i<=hbd.size()-1;i++) {
+    		ret.add(i);
+    	}
+    	Collections.shuffle(ret);
+    	double []data = new double[hbd.dimension()];
+    	for(int i =0;i<=ret.size()-1;i++) {
+    		data = hbd.get(ret.get(i));
+    		s.add(data);
+    	}
+    	s.print();
+    	//System.exit(0);
+    	return s;
+    }
+    
+	void initMusicShapeEditor() {
+		MusicShapeEditor se = new MusicShapeEditor();
+		se.addMusicShape(hbd);
+		add(se.getComponent());
+	}
+
+	void play() {
+	
+		JMSL.clock.setAdvance(0.1);
+
+		JSynMusicDevice dev = JSynMusicDevice.instance();
+		dev.open();
+
+		JMSLMixerContainer mixer = new JMSLMixerContainer();
+		mixer.start();
+
+		JSynUnitVoiceInstrument ins = new JSynUnitVoiceInstrument(8, FilteredSawtoothBL.class.getName());
+		mixer.addInstrument(ins);
+		//hbd.setTimeStretch(0.1);
+		//---------------------------- modification to musical shapes here	
+		s = hbd;
+		hbd = RandomShuffle(hbd);
+		//LEARNING ANY MODIFICATION WITH THE MUSIC SHAPE MUST HAPPEN BEFORE putting ins in
+		hbd.setInstrument(ins);
+		hbd.setRepeats(100);
+		hbd.remove(hbd.size() - 1); // CRASHES ART RUNTIME
+		buildIndexListener(); //use internal index to keep track
+		hbd.print();
+		
+		initMusicShapeEditor();
+		pack();
+		setVisible(true);
+		
+		hbd.launch(JMSL.now());
+	}
+	
+	JButton towardsCorrect;
+	void buidGUI() {
+		towardsCorrect = new JButton("Speed up MusicJob");
+		add(towardsCorrect);
+		towardsCorrect.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) { //do things here when clicked 			
+	              //here to move
+                	double []data = new double[hbd.dimension()];
+                	for(int i=internal_index+3;i<s.size()-1;i++) { //need to give a little space, +2 - + 5, otherwise, will here an audible pause
+                		data = s.get(i);
+                		hbd.set(data, i);
+                	}
+                 //here pause here 	
+			}
+		});
+	}
+	
+
+
+	public static void main(String[] args) {
+		MidiFileDemo midiFileDemo = new MidiFileDemo();
+		midiFileDemo.setTitle("click button to speed up job");
+		midiFileDemo.buidGUI();
+		try {
+			midiFileDemo.readMidi();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		midiFileDemo.tempo(540.0);
+		//---
+//		midiFileDemo.initMusicShapeEditor();
+//		midiFileDemo.pack();
+//		midiFileDemo.setVisible(true);
+		//--- here musicshapeeditor
+		midiFileDemo.play();
+
+	}
+
+}
+
+

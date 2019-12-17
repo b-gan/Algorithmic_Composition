@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+		<attributes>
+			<attribute name="module" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="/Users/berwingan/Desktop/Java_lib/jsyn-20171016.jar"/>
+	<classpathentry kind="lib" path="/Users/berwingan/Desktop/algorithimic composition /JMSL_v2/classes/jmsl.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="file:/Users/berwingan/Desktop/algorithimic%20composition%20/JMSL_v2/html/autodocs/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="/Users/berwingan/Desktop/algorithimic composition /JMSL_v2/classes/jscore.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
