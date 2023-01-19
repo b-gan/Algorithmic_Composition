@@ -1,3 +1,6 @@
 # Algorithmic_Composition
 
-Algorithimic Composition and Computer Music Programming using Java: MPATE-GE 2608-001
+
+Fall 2019 </br>
+Algorithimic Composition and Computer Music Programming using Java </br>
+MPATE-GE 2608-001 </br>
